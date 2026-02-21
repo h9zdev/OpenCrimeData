@@ -1,53 +1,89 @@
-const form = document.getElementById('searchForm');
-const localResults = document.getElementById('localResults');
-const sourceResults = document.getElementById('sourceResults');
-const linkResults = document.getElementById('linkResults');
+document.addEventListener('DOMContentLoaded', () => {
+    const searchForm = document.getElementById('searchForm');
+    const searchInput = document.getElementById('searchInput');
+    const resultsGrid = document.getElementById('resultsGrid');
+    const loading = document.getElementById('loading');
+    const errorMessage = document.getElementById('errorMessage');
 
-function renderObjectRow(key, value) {
-  return `<div><strong>${key}:</strong> ${value ?? ''}</div>`;
-}
+    searchForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const query = searchInput.value.trim();
+        if (!query) return;
 
-function renderResults(data) {
-  localResults.innerHTML = data.local_results.length
-    ? data.local_results
-        .map(
-          (record) =>
-            `<div class="result-item">${Object.entries(record)
-              .map(([k, v]) => renderObjectRow(k, v))
-              .join('')}</div>`
-        )
-        .join('')
-    : '<div class="result-item">No local records found.</div>';
+        // Reset UI
+        resultsGrid.innerHTML = '';
+        loading.style.display = 'block';
+        errorMessage.style.display = 'none';
 
-  sourceResults.innerHTML = data.source_snapshots
-    .map(
-      (s) => `<div class="result-item">
-        <div><strong>Source:</strong> ${s.source}</div>
-        <div><strong>Status:</strong> ${s.status}</div>
-        <pre>${JSON.stringify(s, null, 2)}</pre>
-      </div>`
-    )
-    .join('');
+        try {
+            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error('Failed to fetch search results.');
 
-  linkResults.innerHTML = Object.entries(data.web_links)
-    .map(
-      ([name, url]) => `<div class="result-item"><a href="${url}" target="_blank">${name}</a></div>`
-    )
-    .join('');
-}
+            const data = await response.json();
+            renderResults(data.results);
+        } catch (err) {
+            console.error(err);
+            errorMessage.textContent = 'An error occurred while fetching data. Please try again.';
+            errorMessage.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+        }
+    });
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const params = new URLSearchParams(new FormData(form));
-  const response = await fetch(`/api/search?${params.toString()}`);
-  const data = await response.json();
-  renderResults(data);
+    function escapeHTML(str) {
+        if (!str) return '';
+        return str.replace(/[&<>"']/g, function(m) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[m];
+        });
+    }
+
+    function renderResults(results) {
+        if (!results || results.length === 0) {
+            resultsGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #8b949e;">No records found for this query.</div>';
+            return;
+        }
+
+        resultsGrid.innerHTML = results.map(result => {
+            const tagClass = getTagClass(result.source);
+            const safeTitle = escapeHTML(result.title || 'Unknown Title');
+            const safeDescription = truncate(escapeHTML(result.description || 'No description available.'), 150);
+            const safeUrl = encodeURI(result.url || '#');
+            const safeImage = result.image ? encodeURI(result.image) : null;
+
+            return `
+                <article class="card">
+                    <div class="card-img-container">
+                        ${safeImage ? `<img src="${safeImage}" alt="${safeTitle}" onerror="this.parentElement.innerHTML='<div style=\'color: #30363d; font-size: 3rem;\'>?</div>'">` : `<div style="color: #30363d; font-size: 3rem;">?</div>`}
+                    </div>
+                    <div class="card-content">
+                        <span class="card-tag ${tagClass}">${escapeHTML(result.source)}</span>
+                        <h3 class="card-title">${safeTitle}</h3>
+                        <p class="card-description">${safeDescription}</p>
+                    </div>
+                    <div class="card-footer">
+                        <a href="${safeUrl}" target="_blank" class="btn-view">VIEW DETAILS</a>
+                    </div>
+                </article>
+            `;
+        }).join('');
+    }
+
+    function getTagClass(source) {
+        switch (source.toLowerCase()) {
+            case 'fbi': return 'tag-fbi';
+            case 'interpol': return 'tag-interpol';
+            case 'web search': return 'tag-web';
+            default: return '';
+        }
+    }
+
+    function truncate(str, n) {
+        return (str.length > n) ? str.substr(0, n - 1) + '&hellip;' : str;
+    }
 });
-
-fetch('/api/sources')
-  .then((r) => r.json())
-  .then((data) => {
-    sourceResults.innerHTML = data.sources
-      .map((s) => `<div class="result-item"><strong>${s.source}</strong>: ${s.status}</div>`)
-      .join('');
-  });
