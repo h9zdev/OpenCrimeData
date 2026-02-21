@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open Crime Data Search</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/cyberpunk.css') }}" />
+</head>
+
+<body>
+    <div class="bg-grid"></div>
+    <main class="app-shell">
+        <h1>OPEN CRIME DATA SEARCH</h1>
+        <p class="sub">Flask + Open Source Data Connectors (Interpol / UK Police + Web Search Links)</p>
+
+        <section class="search-panel">
+            <h2>Person Search</h2>
+            <form id="searchForm" class="search-form">
+                <input name="full_name" placeholder="Full Name" />
+                <input name="middle_name" placeholder="Middle Name" />
+                <input name="last_name" placeholder="Last Name" />
+                <input name="dob" type="date" placeholder="DOB" />
+                <input name="address" placeholder="Address" />
+                <input name="country" placeholder="Country" />
+                <input name="city" placeholder="City" />
+                <input name="place" placeholder="Place" />
+                <input name="notes" placeholder="Other Search Keywords" />
+                <button type="submit">Search Records</button>
+            </form>
+        </section>
+
+        <section class="result-grid">
+            <article>
+                <h3>Local Records</h3>
+                <div id="localResults" class="result-box"></div>
+            </article>
+            <article>
+                <h3>Live Source Snapshot</h3>
+                <div id="sourceResults" class="result-box"></div>
+            </article>
+            <article>
+                <h3>Web Search Integrations</h3>
+                <div id="linkResults" class="result-box"></div>
+            </article>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
+</html>
